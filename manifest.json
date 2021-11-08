@@ -1,0 +1,37 @@
+{
+  "name": "BeneRTE Test",
+  "version": "0.1",
+  "description": "BeneRTE Test",
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon_16.png",
+      "48": "images/icon_48.png",
+      "128": "images/icon_128.png"
+    }
+  },
+  "icons": {
+    "16": "images/icon_16.png",
+    "48": "images/icon_48.png",
+    "128": "images/icon_128.png"
+  },
+  "permissions": [
+		"storage",
+    "tabs",
+    "notifications",
+    "https://*/*"
+  ],
+  "background": {
+    "persistent": true,
+    "scripts": [
+      "jwt-decode.js",
+      "signalr.js",
+      "background.js",
+      "jquery-1.10.2.js"
+    ]
+  },
+  "manifest_version": 2,
+  "web_accessible_resources": [
+    "images/*.png"    
+  ]
+}
