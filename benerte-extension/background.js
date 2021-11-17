@@ -42,6 +42,8 @@ async function getData() {
     // Get expiration 
     var tokendata = JSON.parse(atob(rteInfo.Token.split(".")[1]));
     console.log(tokendata);
+    console.log("Roken expires" + Date(tokendata.exp));
+
 
     console.log("Starting rte connection");
 
@@ -53,12 +55,22 @@ async function getData() {
 
     connection.start().then(function () {
         console.log("rte connected");
+        AddSubscriptions();
     }).catch(function (err) {
         console.log(err.toString());
     });
 
     connection.on("MessageReceived", function (message) {
-        console.log("MessageReceived: " + JSON.stringify(message));
+        var eventType = message.data.eventType;
+        console.log("MessageReceived: " + JSON.stringify(message.data));
+        chrome.notifications.create('', {
+            title: "OMG! Event [" + eventType +"] recieved!",
+            message: JSON.stringify(message.data),
+            iconUrl: '/images/benebot.png',
+            type: 'basic'
+          });
+
+
     });
 
     connection.on("SubscribeDetails", function (message) {
@@ -76,30 +88,34 @@ async function getData() {
     connection.on("AvailableSubscriptions", function (message) {
         console.log("Events list: " + JSON.stringify(message));
 
-
-    // Add some subs
-    var eventlist = ("UserAvailability","UserSetting","UserCallInComing","UserCallInConnected","UserCallInDisconnected","UserCallOutGoing","UserCallOutConnected","UserCallOutDisconnected");
-    //,"UserContactCard","QueueCallInComing","QueueCallInArrived","QueueCallInUserAllocated","QueueCallInUserConnected","QueueCallInUserCancelled","QueueCallInOverflow","QueueCallInTransferStarted","QueueCallInTransferConnected","QueueCallInTransferCancelled","QueueCallInDisconnected","UserCallInArrived","UserCallInUserAllocated","UserCallInUserConnected","UserCallInUserCancelled","UserCallInOverflow","UserCallInTransferStarted","UserCallInTransferConnected","UserCallInTransferCancelled","UserCallInUserOverflow","QueueStatus","CallbackCreated","CallbackUpdated","CallbackClosed","UserAlert","UserQueueAlert","UserAction","UserActionMobileCall","CallbackChanged","UserCallbackChanged","UserWrapUpEnabled","UserWrapUpStarted","UserWrapUpTerminated","UserWrapUpRequestTerminate","UserConfigurationSetNextCLI"
-
-    var subscriptions = new Array();
-    for (var event of eventlist)
-    {   
-        subscriptions.push({
-            EntityId: userData.userid, 
-            EventName: event
-        });     
-    }
-
-    connection.invoke("Subscribe", subscriptions)
-        .catch(function (err) {
-            return console.error(err.toString());
-        });
-
-});
+    });
 
 }
 
 getData();
+
+function AddSubscriptions() {
+    // Add some subs
+    const eventlist = ["UserAvailability","UserSetting","UserCallInComing","UserCallInConnected","UserCallInDisconnected","UserCallOutGoing","UserCallOutConnected","UserCallOutDisconnected"];
+    //,"UserContactCard","QueueCallInComing","QueueCallInArrived","QueueCallInUserAllocated","QueueCallInUserConnected","QueueCallInUserCancelled","QueueCallInOverflow","QueueCallInTransferStarted","QueueCallInTransferConnected","QueueCallInTransferCancelled","QueueCallInDisconnected","UserCallInArrived","UserCallInUserAllocated","UserCallInUserConnected","UserCallInUserCancelled","UserCallInOverflow","UserCallInTransferStarted","UserCallInTransferConnected","UserCallInTransferCancelled","UserCallInUserOverflow","QueueStatus","CallbackCreated","CallbackUpdated","CallbackClosed","UserAlert","UserQueueAlert","UserAction","UserActionMobileCall","CallbackChanged","UserCallbackChanged","UserWrapUpEnabled","UserWrapUpStarted","UserWrapUpTerminated","UserWrapUpRequestTerminate","UserConfigurationSetNextCLI"
+    
+    var subscriptions = new Array();
+    
+    eventlist.forEach(item => subscriptions.push({EntityId: userData.userid, EventName: item}));
+    
+    console.log("subscribing to " + JSON.stringify(subscriptions));
+    chrome.notifications.create('', {
+        title: 'Just wanted to notify you',
+        message: 'Creating some RTE-subscriptions',
+        iconUrl: '/images/benebot.png',
+        type: 'basic'
+      });
+
+    rteconn.invoke("Subscribe", subscriptions)
+        .catch(function (err) {
+            return console.error(err.toString());
+        })
+}
 
 async function GetRTEToken() {
     console.log("Getting RTE token");

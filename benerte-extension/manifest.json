@@ -11,9 +11,9 @@
     }
   },
   "icons": {
-    "16": "images/icon_16.png",
-    "48": "images/icon_48.png",
-    "128": "images/icon_128.png"
+    "16": "images/benebot_16.png",
+    "48": "images/benebot_48.png",
+    "128": "images/benebot_128.png"
   },
   "permissions": [
 		"storage",
@@ -24,10 +24,8 @@
   "background": {
     "persistent": true,
     "scripts": [
-      "jwt-decode.js",
       "signalr.js",
-      "background.js",
-      "jquery-1.10.2.js"
+      "background.js"
     ]
   },
   "manifest_version": 2,
