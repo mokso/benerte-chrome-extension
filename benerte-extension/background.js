@@ -2,7 +2,8 @@ var userData = {
     "userid": null,
     "username": null,
     "basicauth": null,
-    "beneapi": null
+    "beneapi": null,
+    "queues": null
 };
 
 var rte = null
@@ -23,6 +24,8 @@ const readLocalStorage = async (key) => {
     });
   };
 
+
+
 async function getData() {
     console.log("Loading user data from localstorage...");
     let userid = await readLocalStorage('userid');
@@ -42,7 +45,7 @@ async function getData() {
     // Get expiration 
     var tokendata = JSON.parse(atob(rteInfo.Token.split(".")[1]));
     console.log(tokendata);
-    console.log("Roken expires" + Date(tokendata.exp));
+    console.log("Token expires" + Date(tokendata.exp));
 
 
     console.log("Starting rte connection");
@@ -61,16 +64,7 @@ async function getData() {
     });
 
     connection.on("MessageReceived", function (message) {
-        var eventType = message.data.eventType;
-        console.log("MessageReceived: " + JSON.stringify(message.data));
-        chrome.notifications.create('', {
-            title: "OMG! Event [" + eventType +"] recieved!",
-            message: JSON.stringify(message.data),
-            iconUrl: '/images/benebot.png',
-            type: 'basic'
-          });
-
-
+        ProcessRteMessage(message.data);
     });
 
     connection.on("SubscribeDetails", function (message) {
@@ -94,9 +88,32 @@ async function getData() {
 
 getData();
 
+
+// BeneAPI functions
+async function GetUserQueues() {
+    console.log("Getting Queues ");
+    var url = userData.beneapi + "queues/?OnlyForUser=" + userData.userid;
+    var headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + userData.basicauth
+    }
+
+    let response = await fetch (url, {
+        method: "GET",
+        headers: headers
+    });
+    if (response.ok) {
+        let data = await response.json();
+        console.log("Queues: " + JSON.stringify(data));
+        userData.queues = data;
+    }
+}
+
+
 function AddSubscriptions() {
     // Add some subs
-    const eventlist = ["UserAvailability","UserSetting","UserCallInComing","UserCallInConnected","UserCallInDisconnected","UserCallOutGoing","UserCallOutConnected","UserCallOutDisconnected"];
+    const eventlist = ["UserAvailability","UserSetting","UserStatus","UserCallInComing","UserCallOutGoing","QueueCallInUserAllocated"];
     //,"UserContactCard","QueueCallInComing","QueueCallInArrived","QueueCallInUserAllocated","QueueCallInUserConnected","QueueCallInUserCancelled","QueueCallInOverflow","QueueCallInTransferStarted","QueueCallInTransferConnected","QueueCallInTransferCancelled","QueueCallInDisconnected","UserCallInArrived","UserCallInUserAllocated","UserCallInUserConnected","UserCallInUserCancelled","UserCallInOverflow","UserCallInTransferStarted","UserCallInTransferConnected","UserCallInTransferCancelled","UserCallInUserOverflow","QueueStatus","CallbackCreated","CallbackUpdated","CallbackClosed","UserAlert","UserQueueAlert","UserAction","UserActionMobileCall","CallbackChanged","UserCallbackChanged","UserWrapUpEnabled","UserWrapUpStarted","UserWrapUpTerminated","UserWrapUpRequestTerminate","UserConfigurationSetNextCLI"
     
     var subscriptions = new Array();
@@ -112,6 +129,22 @@ function AddSubscriptions() {
       });
 
     rteconn.invoke("Subscribe", subscriptions)
+        .catch(function (err) {
+            return console.error(err.toString());
+        })
+}
+
+async function AddQueueSubscriptions(){
+    var queueSubs = new Array();    
+    userData.queues.forEach(item => queueSubs.push({EntityId: item.Id, EventName: "QueueCallInUserAllocated"}));
+    rteconn.invoke("Subscribe", queueSubs)
+        .catch(function (err) {
+            return console.error(err.toString());
+        })
+}
+
+function GetAvailableSubscriptions() {
+    rteconn.invoke("AvailableSubscriptions")
         .catch(function (err) {
             return console.error(err.toString());
         })
@@ -137,3 +170,94 @@ async function GetRTEToken() {
     }
 }
 
+function ProcessRteMessage(message) {
+    // Eventtypes currently numeric, but going to change to textual form
+    var eventType = message.eventType;
+    console.log("Processing message: " + JSON.stringify(message));
+
+    switch(eventType) {
+        //UserAvailability = 1,
+        case 1:
+            HandleUserAvailability(message);
+            break;
+
+        //UserCallInComing = 10,
+        case 10:
+            HandleUserCallInComing(message);
+            break;
+        // QueueCallInUserAllocated = 102
+        case 102:
+            break;
+        //QueueStatus = 140
+        case  140:
+            break;
+        //UserStatus = 141
+        case 141:
+            break;
+        default:
+            console.log("No idea what to do with eventtype "+ eventType);
+    }
+}
+
+function HandleUserCallInComing(message) {
+    var caller = message.callerNumber;
+
+    chrome.notifications.create('', {
+        title: "Incoming direct call",
+        message: "Caller: " + caller ,
+        iconUrl: '/images/benebot.png',
+        type: 'basic'
+    });
+
+    // open tab and search google with caller number
+    var newURL = "http://google.com/?q="+caller;
+    chrome.tabs.create({ 
+        url: newURL 
+    });
+}
+
+function HandleUserAvailability(message) {
+    const rtf = new Intl.RelativeTimeFormat('en');
+    var ava = message.availability;
+    var note = message.note;
+
+    // end time is UTC even not suffixed with Z. Fix coming, but workaround until then
+    var endTimeString = message.endTime;
+    if (!endTimeString.endsWith("Z")) {
+        endTimeString = endTimeString + "Z"
+    }
+    var endTime = new Date(endTimeString);
+    var now = new Date();
+
+    if (endTime > new Date(9999,01,01)) {
+        endString = ".";
+    }
+    else {
+        endString = ". This ends " + formatEndTime(endTime, "en")
+    }
+
+    chrome.notifications.create('', {
+        title: "Your availabilty changed!",
+        message: "Your availability is now " + ava + " " + endString,
+        iconUrl: '/images/benebot.png',
+        type: 'basic'
+    });
+}
+
+function formatEndTime(value, locale) {
+    const date = new Date(value);
+    const formatter = new Intl.RelativeTimeFormat(locale);
+
+    const deltaDays = (date.getTime() - Date.now()) / (1000 * 3600 * 24);
+    if (deltaDays > 0.9) {
+        return formatter.format(Math.round(deltaDays), 'days');
+    }
+
+    const deltaHours = (date.getTime() - Date.now()) / (1000 * 3600);
+    if (deltaHours > 0.9) {
+        return formatter.format(Math.round(deltaHours), 'hours');
+    }
+
+    const deltaMins = (date.getTime() - Date.now()) / (1000 * 60);
+    return formatter.format(Math.round(deltaMins), 'minutes');
+  }
