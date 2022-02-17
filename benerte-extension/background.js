@@ -58,7 +58,8 @@ async function getData() {
 
     connection.start().then(function () {
         console.log("rte connected");
-        AddSubscriptions();
+        GetAvailableSubscriptions();
+        //AddSubscriptions();
     }).catch(function (err) {
         console.log(err.toString());
     });
@@ -113,7 +114,8 @@ async function GetUserQueues() {
 
 function AddSubscriptions() {
     // Add some subs
-    const eventlist = ["UserAvailability","UserSetting","UserStatus","UserCallInComing","UserCallOutGoing","QueueCallInUserAllocated"];
+    const eventlist = ["UserAvailability","UserStatus"];
+    //["UserAvailability","UserSetting","UserStatus","UserCallInComing","UserCallOutGoing","QueueCallInUserAllocated"];
     //,"UserContactCard","QueueCallInComing","QueueCallInArrived","QueueCallInUserAllocated","QueueCallInUserConnected","QueueCallInUserCancelled","QueueCallInOverflow","QueueCallInTransferStarted","QueueCallInTransferConnected","QueueCallInTransferCancelled","QueueCallInDisconnected","UserCallInArrived","UserCallInUserAllocated","UserCallInUserConnected","UserCallInUserCancelled","UserCallInOverflow","UserCallInTransferStarted","UserCallInTransferConnected","UserCallInTransferCancelled","UserCallInUserOverflow","QueueStatus","CallbackCreated","CallbackUpdated","CallbackClosed","UserAlert","UserQueueAlert","UserAction","UserActionMobileCall","CallbackChanged","UserCallbackChanged","UserWrapUpEnabled","UserWrapUpStarted","UserWrapUpTerminated","UserWrapUpRequestTerminate","UserConfigurationSetNextCLI"
     
     var subscriptions = new Array();
@@ -144,10 +146,17 @@ async function AddQueueSubscriptions(){
 }
 
 function GetAvailableSubscriptions() {
+    rteconn.invoke("AvailableSubscriptions").then(function (payload) {
+        console.log("Available subscriptions " + JSON.stringify(payload));
+    }).catch(function (err) {
+        return console.error(err.toString());
+    });
+    /*
     rteconn.invoke("AvailableSubscriptions")
         .catch(function (err) {
             return console.error(err.toString());
         })
+        */
 }
 
 async function GetRTEToken() {
